@@ -7,10 +7,11 @@ import numpy as np
 import torchvision.transforms.functional as F
 from torch.utils.data import DataLoader
 from PIL import Image
-from scipy.misc import imread
+from imageio import imread
 from skimage.feature import canny
 from skimage.color import rgb2gray, gray2rgb
 from .utils import create_mask
+import cv2
 
 
 class Dataset(torch.utils.data.Dataset):
@@ -72,6 +73,7 @@ class Dataset(torch.utils.data.Dataset):
 
         # load edge
         edge = self.load_edge(img_gray, index, mask)
+        # edge = cv2.imread('./examples/my/edges.png', flags=cv2.IMREAD_UNCHANGED)
 
         # augment data
         if self.augment and np.random.binomial(1, 0.5) > 0:
@@ -87,19 +89,19 @@ class Dataset(torch.utils.data.Dataset):
 
         # in test mode images are masked (with masked regions),
         # using 'mask' parameter prevents canny to detect edges for the masked regions
-        mask = None if self.training else (1 - mask / 255).astype(np.bool)
+        mask = None if self.training else (1 - mask / 255).astype(bool)
 
         # canny
         if self.edge == 1:
             # no edge
             if sigma == -1:
-                return np.zeros(img.shape).astype(np.float)
+                return np.zeros(img.shape).astype(float)
 
             # random sigma
             if sigma == 0:
                 sigma = random.randint(1, 4)
 
-            return canny(img, sigma=sigma, mask=mask).astype(np.float)
+            return canny(img, sigma=sigma, mask=mask).astype(float)
 
         # external
         else:
@@ -146,7 +148,10 @@ class Dataset(torch.utils.data.Dataset):
         if mask_type == 6:
             mask = imread(self.mask_data[index])
             mask = self.resize(mask, imgh, imgw, centerCrop=False)
-            mask = rgb2gray(mask)
+            # print(mask.shape)
+            # print(np.unique(mask))
+            # don't need because automatically read grayscale
+            # mask = rgb2gray(mask)
             mask = (mask > 0).astype(np.uint8) * 255
             return mask
 
@@ -165,7 +170,7 @@ class Dataset(torch.utils.data.Dataset):
             i = (imgw - side) // 2
             img = img[j:j + side, i:i + side, ...]
 
-        img = scipy.misc.imresize(img, [height, width])
+        img = np.array(Image.fromarray(img).resize((height, width)))
 
         return img
 
